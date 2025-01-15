@@ -23,9 +23,9 @@ def info() -> typing.Dict:
     return {
         "apiversion": "1",
         "author": "dannnnnnny",  # TODO: Your Battlesnake Username
-        "color": "#e0d475",  # TODO: Choose color
+        "color": "#0096FF",  # TODO: Choose color
         "head": "beluga",  # TODO: Choose head
-        "tail": "default",  # TODO: Choose tail
+        "tail": "do-sammy",  # TODO: Choose tail
     }
 
 
@@ -125,27 +125,95 @@ def move(game_state: typing.Dict) -> typing.Dict:
                     is_move_safe["right"] = False
                 if possible_move["x"] == my_head["x"] - 1 and possible_move["y"] == my_head["y"]:
                     is_move_safe["left"] = False
-    
+
     # Are there any safe moves left?
     safe_moves = []
     for move, isSafe in is_move_safe.items():
         if isSafe:
             safe_moves.append(move)
+    print(f"MOVE {game_state['turn']}")
+    print("safemoves", safe_moves)
 
     if len(safe_moves) == 0:
         print(f"MOVE {game_state['turn']}: No safe moves detected! Moving down")
         return {"move": "down"}
 
-    print(safe_moves)
     # Choose a random move from the safe ones
+    print(game_state['you']['health'])
+    if game_state['you']['health'] < 95:
+        where_da_food_at = game_state['board']['food']
+    
+        print("food", where_da_food_at)
+        print("me", my_head)
+        closest_food = get_distance_to_food(my_head, where_da_food_at)
+        print('closest food', closest_food)
+    
+        if closest_food:
+            move_score = {}
+            enemies = [snake for snake in game_state['board']['snakes'] if snake['id'] != game_state['you']['id']]
+            for move in safe_moves:
+                possible_move = {
+                    'up': {'x': my_head['x'], 'y': my_head['y'] + 1},
+                    'down': {'x': my_head['x'], 'y': my_head['y'] - 1},
+                    'left': {'x': my_head['x'] - 1, 'y': my_head['y']},
+                    'right': {'x': my_head['x'] + 1, 'y': my_head['y']}
+                }
+                move_score[move] = get_manhat_dist(possible_move[move], closest_food)
+                
+                for snake in enemies:
+                    #print("pos move = ",possible_move[move])
+                    #print("Opponent = ", snake["head"])
+    
+                    dist_to_enemy = get_manhat_dist(possible_move[move], snake["head"])
+                    if dist_to_enemy > 2:
+                        move_score[move] -= 2
+    
+            scored_moves = [(score, move) for move, score in move_score.items()]
+            # Get move with lowest score
+            best_score, best_move = min(scored_moves)
+            print(best_move)
+            return { 'move':best_move }
+
+    print("after food", safe_moves)
+    dir = find_space(my_head, opponents, game_state['board']['height'], game_state['board']['width'])
+    print(dir)
+    if dir in safe_moves:
+        return { 'move': dir }
+    
     next_move = random.choice(safe_moves)
 
     # TODO: Step 4 - Move towards food instead of random, to regain health and survive longer
     # food = game_state['board']['food']
 
-    print(f"MOVE {game_state['turn']}: {next_move}")
+    # print(f"MOVE {game_state['turn']}: {next_move}")
     return {"move": next_move}
 
+def find_space(head, opp, h, w):
+    bodies = [x for op in opp for x in op]
+    print('bodies', bodies, h, w, head)
+    vert = h - head["y"] 
+    horiz = w - head["x"]
+    print(horiz, vert) 
+    print("h > v", horiz > vert) 
+    if horiz > vert:
+        return "right" if horiz > h//2 else "left"
+    else:
+        return "up" if vert > w//2 else "down"
+
+
+def get_distance_to_food(head, all_food):
+    if not all_food:
+        return None
+
+
+    x = min(all_food, key=lambda food: get_manhat_dist(head, food))
+    return x
+#    dists = [get_manhat_dist(head, f) for f in all_food]
+    #return dists
+
+
+def get_manhat_dist(head, food):
+    return abs(head["x"] - food["x"]) + abs(head["y"] - food["y"])
 
 # Start server when `python main.py` is run
 if __name__ == "__main__":
